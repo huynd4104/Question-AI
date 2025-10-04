@@ -3,7 +3,7 @@ let resultDiv = null;
 let lastSelectionRange = null;
 
 // Hàm để hiển thị kết quả
-function showResult(text, isLoading = false) {
+async function showResult(text, isLoading = false) {
     if (resultDiv) {
         resultDiv.remove();
     }
@@ -17,20 +17,31 @@ function showResult(text, isLoading = false) {
     if (!range) return;
     const rect = range.getBoundingClientRect();
 
+    // Lấy cài đặt theme từ storage, mặc định là dark mode (true)
+    const { isDarkMode } = await chrome.storage.sync.get({ isDarkMode: true });
+
+    // Định nghĩa các màu sắc dựa trên theme
+    const theme = {
+        backgroundColor: isDarkMode ? '#2d2d2d' : '#f0f0f0',
+        color: isDarkMode ? '#f0f0f0' : '#2d2d2d',
+        borderColor: isDarkMode ? '#444' : '#ccc'  
+    };
+
     resultDiv = document.createElement('div');
+    // Áp dụng style từ đối tượng theme
     Object.assign(resultDiv.style, {
         position: 'absolute',
         top: `${rect.bottom + window.scrollY + 5}px`,
         left: `${rect.left + window.scrollX}px`,
-        backgroundColor: '#2d2d2d',
-        color: '#f0f0f0',
-        border: '1px solid #444',
+        backgroundColor: theme.backgroundColor,
+        color: theme.color,
+        border: `1px solid ${theme.borderColor}`,
         borderRadius: '8px',
-        padding: '10px 15px',
+        padding: '5px 10px',
         zIndex: '99999',
         maxWidth: '450px',
         boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
-        fontSize: '14px',
+        fontSize: '12px',
         lineHeight: '1.6',
         fontFamily: 'Arial, sans-serif'
     });

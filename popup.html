@@ -50,6 +50,7 @@
         }
 
         input[type="password"],
+        input[type="text"],
         textarea {
             width: 100%;
             padding: 10px 12px;
@@ -63,6 +64,7 @@
         }
 
         input[type="password"]:focus,
+        input[type="text"]:focus,
         textarea:focus {
             outline: none;
             background: rgba(255, 255, 255, 0.08);
@@ -109,7 +111,7 @@
         }
 
         button:hover {
-            background: #66718a;
+            background: #3b4a63;
         }
 
         .divider {
@@ -176,10 +178,9 @@
         .circle::after {
             content: "";
             position: absolute;
-            top: 2px;
-            /* cách viền 2px */
+            top: 2.2px;
             left: 2px;
-            right: 2px;
+            right: 2.1px;
             bottom: 2px;
             background: white;
             border-radius: 50%;
@@ -190,8 +191,58 @@
             border-color: var(--accent-green);
         }
 
-        .circle:active {
+        .circle:active,
+        .mini-circle:active {
             transform: scale(0.95);
+        }
+
+        /* --- Mini Circle Toggle --- */
+        .mini-circle-toggle {
+            position: relative;
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            vertical-align: middle;
+        }
+
+        .mini-circle-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .mini-circle {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f0f0f0;
+            border-radius: 50%;
+            box-sizing: border-box;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            background: transparent;
+        }
+
+        .mini-circle::after {
+            content: "";
+            position: absolute;
+            top: 3.5px;
+            left: 3.5px;
+            width: 10px;
+            height: 10px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+
+        .mini-circle-toggle input:checked+.mini-circle {
+            border-color: var(--accent-green);
+        }
+
+        .mini-circle-toggle input:checked+.mini-circle::after {
+            background: #f0f0f0;
         }
 
         /* --- Modal --- */
@@ -288,7 +339,7 @@
             position: fixed;
             top: 20px;
             left: 50%;
-            transform: translate(-50%, -150%); 
+            transform: translate(-50%, -150%);
             padding: 12px 20px;
             border-radius: 8px;
             z-index: 9999;
@@ -297,14 +348,15 @@
             color: #ffffff;
             opacity: 0;
             transition: transform 0.4s ease-out, opacity 0.4s ease-out;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
             border: 1px solid rgba(255, 255, 255, 0.2);
             text-align: center;
             min-width: 300px;
         }
 
         .global-notification.show {
-            transform: translate(-50%, 0); /* Di chuyển vào trong màn hình */
+            transform: translate(-50%, 0);
+            /* Di chuyển vào trong màn hình */
             opacity: 1;
         }
 
@@ -349,11 +401,18 @@
                 <label for="lastQuestion">Câu hỏi cuối cùng</label>
                 <textarea id="lastQuestion" rows="3" readonly class="readonly-textarea"></textarea>
             </div>
-            <div class="form-group" style="margin-bottom: 0;">
-                <label for="lastAnswer">Câu trả lời cuối cùng</label>
-                <textarea id="lastAnswer" rows="3" readonly class="readonly-textarea"></textarea>
+            <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; ">
+                <label for="lastAnswer" style="flex: 1;">
+                    Câu trả lời cuối cùng
+                </label>
+                <label class="mini-circle-toggle">
+                    <input type="checkbox" id="miniCircleToggle" />
+                    <span class="mini-circle"></span>
+                </label>
             </div>
-        </fieldset>
+            <textarea id="lastAnswer" rows="3" readonly class="readonly-textarea"></textarea>
+    </div>
+    </fieldset>
     </div>
 
     <div id="apiKeyModal" class="modal">
@@ -365,7 +424,7 @@
             <button id="addApiKeyButton">+</button>
             <div class="divider" style="margin: 16px 0;"></div>
             <button id="saveKeysButton">Lưu API Keys</button>
-            </div>
+        </div>
     </div>
 
     <script src="popup.js"></script>
