@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Gemini Trợ Lý Nhanh",
-  "version": "1.0",
+  "version": "2.0",
   "description": "Bôi đen văn bản, chuột phải để hỏi Gemini và nhận câu trả lời ngay trên trang.",
   "permissions": [
     "storage",

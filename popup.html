@@ -290,6 +290,15 @@
             gap: 8px;
             margin-bottom: 10px;
         }
+        
+        /* STYLE CHO KEY BỊ KHÓA */
+        .api-key-item.locked .apiKeyInput {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+        }
+
 
         .api-key-item input {
             flex-grow: 1;
@@ -424,7 +433,7 @@
             </div>
             <button id="addApiKeyButton">+</button>
             <div class="divider" style="margin: 16px 0;"></div>
-            <button id="saveKeysButton">Lưu API Keys</button>
+            <button id="saveKeysButton">Lưu và Kích hoạt tất cả API Keys</button>
         </div>
     </div>
 

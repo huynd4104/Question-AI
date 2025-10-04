@@ -31,38 +31,23 @@ document.addEventListener("DOMContentLoaded", () => {
         return key;
     };
 
-    // Tách hàm lưu ra để có thể tái sử dụng
-    const saveCurrentKeys = (showSuccessNotification = true) => {
-        const apiKeyInputs = document.querySelectorAll(".apiKeyInput");
-        const apiKeys = Array.from(apiKeyInputs)
-            .map((input) => input.dataset.fullKey.trim())
-            .filter((key) => key !== "");
-
-        chrome.storage.sync.set({ geminiApiKeys: apiKeys }, () => {
-            if (showSuccessNotification) {
-                showNotification("✓ Đã cập nhật danh sách API Keys !", "success");
-            }
-            // Tải lại danh sách để đảm bảo UI đồng bộ sau khi lưu hoặc xóa
-             setTimeout(() => {
-                loadSettings();
-            }, 500);
-        });
-    };
-
-    const createApiKeyInput = (value = "") => {
+    const createApiKeyInput = (keyObject = { key: '', status: 'active' }) => {
         const div = document.createElement("div");
         div.className = "api-key-item";
+        if (keyObject.status === 'locked') {
+            div.classList.add('locked');
+            div.title = "Key này đã hết hạn ngạch và đang bị khóa tạm thời.";
+        }
 
         const input = document.createElement("input");
         input.type = "text";
         input.className = "apiKeyInput";
-        input.dataset.fullKey = value;
-        input.value = maskApiKey(value);
+        input.dataset.fullKey = keyObject.key;
+        input.value = maskApiKey(keyObject.key);
 
-        if (value) {
+        // Xử lý cho key đã lưu và key mới
+        if (keyObject.key) {
             input.readOnly = true;
-            input.classList.add("readonly-key");
-            input.title = "API key đã được lưu và bảo mật";
         } else {
             input.placeholder = "Nhập hoặc dán API key mới...";
             input.addEventListener('input', (e) => {
@@ -76,16 +61,19 @@ document.addEventListener("DOMContentLoaded", () => {
         removeBtn.title = "Xóa key này";
 
         removeBtn.onclick = () => {
-            // Xóa phần tử khỏi giao diện
             div.remove();
-            // Lưu lại danh sách các key còn lại
+            // Lưu lại danh sách các key còn lại ngay lập tức
             const apiKeyInputs = document.querySelectorAll(".apiKeyInput");
-            const apiKeys = Array.from(apiKeyInputs)
-                .map((input) => input.dataset.fullKey.trim())
-                .filter((key) => key !== "");
-                
-            chrome.storage.sync.set({ geminiApiKeys: apiKeys }, () => {
-                 showNotification("Đã xóa API Key !", "success");
+            const apiKeyObjects = Array.from(apiKeyInputs)
+                .map(input => ({
+                    key: input.dataset.fullKey.trim(),
+                    // Giữ lại status cũ nếu có, nếu không thì mặc định là active
+                    status: apiKeysContainer.querySelector(`[data-full-key="${input.dataset.fullKey}"]`)?.parentElement.classList.contains('locked') ? 'locked' : 'active'
+                }))
+                .filter(obj => obj.key !== "");
+
+            chrome.storage.sync.set({ geminiApiKeys: apiKeyObjects }, () => {
+                showNotification("Đã xóa API Key !", "success");
             });
         };
 
@@ -94,32 +82,47 @@ document.addEventListener("DOMContentLoaded", () => {
         apiKeysContainer.appendChild(div);
     };
 
-    const loadSettings = () => {
-        chrome.storage.sync.get(["geminiApiKeys", "geminiSystemPrompt", "isExtensionEnabled", "isDarkMode"], (syncResult) => {
-            apiKeysContainer.innerHTML = "";
-            const keys = syncResult.geminiApiKeys || [];
-            if (keys.length > 0) {
-                keys.forEach((key) => createApiKeyInput(key));
-            } else {
-                // Nếu không có key nào, luôn hiển thị một ô trống để người dùng nhập
-                createApiKeyInput();
-            }
-            systemPromptInput.value = syncResult.geminiSystemPrompt || "";
-            extensionToggle.checked = syncResult.isExtensionEnabled !== false;
-            themeToggle.checked = syncResult.isDarkMode !== false;
-            chrome.storage.local.get(["lastQuestion", "lastAnswer"], (localResult) => {
-                document.getElementById("lastQuestion").textContent = localResult.lastQuestion || "Chưa có câu hỏi nào.";
-                document.getElementById("lastAnswer").textContent = localResult.lastAnswer || "Chưa có câu trả lời nào.";
-            });
-        });
+    const loadSettings = async () => {
+        // Lấy cài đặt từ sync storage
+        const syncResult = await chrome.storage.sync.get(["geminiApiKeys", "geminiSystemPrompt", "isExtensionEnabled", "isDarkMode"]);
+
+        // Xử lý API keys
+        apiKeysContainer.innerHTML = "";
+        let keys = syncResult.geminiApiKeys || [];
+
+        // Tự động chuyển đổi định dạng dữ liệu cũ
+        if (keys.length > 0 && typeof keys[0] === 'string') {
+            keys = keys.map(key => ({ key: key, status: 'active' }));
+            // Lưu lại định dạng mới
+            await chrome.storage.sync.set({ geminiApiKeys: keys });
+        }
+
+        if (keys.length > 0) {
+            keys.forEach(keyObj => createApiKeyInput(keyObj));
+        } else {
+            createApiKeyInput(); // Hiển thị ô trống nếu không có key nào
+        }
+
+        // Tải các cài đặt khác
+        systemPromptInput.value = syncResult.geminiSystemPrompt || "";
+        extensionToggle.checked = syncResult.isExtensionEnabled !== false;
+        themeToggle.checked = syncResult.isDarkMode !== false;
+
+        // Tải dữ liệu từ local storage (câu hỏi/trả lời cuối)
+        const localResult = await chrome.storage.local.get(["lastQuestion", "lastAnswer"]);
+        document.getElementById("lastQuestion").textContent = localResult.lastQuestion || "Chưa có câu hỏi nào.";
+        document.getElementById("lastAnswer").textContent = localResult.lastAnswer || "Chưa có câu trả lời nào.";
     };
+
 
     // --- Event Listeners ---
     manageApiButton.addEventListener("click", () => apiKeyModal.style.display = "block");
+
     closeModalButton.addEventListener("click", () => {
         apiKeyModal.style.display = "none";
-        loadSettings(); // Tải lại setting khi đóng modal để hủy các thay đổi chưa lưu
+        loadSettings(); // Tải lại setting để hủy các thay đổi chưa lưu
     });
+
     window.addEventListener("click", (event) => {
         if (event.target == apiKeyModal) {
             apiKeyModal.style.display = "none";
@@ -131,16 +134,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     saveKeysButton.addEventListener("click", () => {
         const apiKeyInputs = document.querySelectorAll(".apiKeyInput");
-        const apiKeys = Array.from(apiKeyInputs)
-            .map((input) => input.dataset.fullKey.trim())
-            .filter((key) => key !== "");
+        const apiKeyObjects = Array.from(apiKeyInputs)
+            .map((input) => ({
+                key: input.dataset.fullKey.trim(),
+                status: 'active' // Khi lưu, tất cả các key đều được reset về 'active'
+            }))
+            .filter((obj) => obj.key !== "");
 
-        if (apiKeys.length === 0) {
+        if (apiKeyObjects.length === 0) {
             showNotification("⚠️ Vui lòng nhập ít nhất một API Key !", "error");
             return;
         }
-        
-        saveCurrentKeys(true);
+
+        chrome.storage.sync.set({ geminiApiKeys: apiKeyObjects }, () => {
+            showNotification("✓ Đã lưu và kích hoạt lại tất cả API Keys!", "success");
+            loadSettings();
+        });
     });
 
     savePromptButton.addEventListener("click", () => {
