@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const maskApiKey = (key) => {
         if (key && key.length > 6) {
-            return `${key.substring(0, 3)}••••••${key.substring(key.length - 3)}`;
+            return `${key.substring(0, 3)}••••••••••••••••••${key.substring(key.length - 3)}`;
         }
         return key;
     };
