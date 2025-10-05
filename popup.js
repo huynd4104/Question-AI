@@ -20,11 +20,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const promptsContainer = document.getElementById("promptsContainer");
     const addPromptButton = document.getElementById("addPromptButton");
     const savePromptsButton = document.getElementById("savePromptsButton");
-    const applyPromptButton = document.getElementById("applyPromptButton");
+
+
+    const confirmationModal = document.getElementById("confirmationModal");
+    const confirmationMessage = document.getElementById("confirmationMessage");
+    const confirmButton = document.getElementById("confirmButton");
+    const cancelButton = document.getElementById("cancelButton");
+    let confirmCallback = null;
 
 
     const globalNotification = document.getElementById("globalNotification");
     let notificationTimeout;
+
+    const showConfirmation = (message, onConfirm) => {
+        confirmationMessage.textContent = message;
+        confirmCallback = onConfirm;
+        confirmationModal.style.display = "block";
+    };
 
     // --- UTILITY FUNCTIONS ---
     const showNotification = (message, type, duration = 3000) => {
@@ -71,18 +83,21 @@ document.addEventListener("DOMContentLoaded", () => {
         removeBtn.textContent = "Xóa";
         removeBtn.title = "Xóa key này";
 
+        // THAY ĐỔI TẠI ĐÂY
         removeBtn.onclick = () => {
-            div.remove();
-            const apiKeyInputs = document.querySelectorAll(".apiKeyInput");
-            const apiKeyObjects = Array.from(apiKeyInputs)
-                .map(input => ({
-                    key: input.dataset.fullKey.trim(),
-                    status: apiKeysContainer.querySelector(`[data-full-key="${input.dataset.fullKey}"]`)?.parentElement.classList.contains('locked') ? 'locked' : 'active'
-                }))
-                .filter(obj => obj.key !== "");
+            showConfirmation("Bạn có chắc chắn muốn xóa API key này?", () => {
+                div.remove();
+                const apiKeyInputs = document.querySelectorAll(".apiKeyInput");
+                const apiKeyObjects = Array.from(apiKeyInputs)
+                    .map(input => ({
+                        key: input.dataset.fullKey.trim(),
+                        status: apiKeysContainer.querySelector(`[data-full-key="${input.dataset.fullKey}"]`)?.parentElement.classList.contains('locked') ? 'locked' : 'active'
+                    }))
+                    .filter(obj => obj.key !== "");
 
-            chrome.storage.sync.set({ geminiApiKeys: apiKeyObjects }, () => {
-                showNotification("Đã xóa API Key !", "success");
+                chrome.storage.sync.set({ geminiApiKeys: apiKeyObjects }, () => {
+                    showNotification("Đã xóa API Key !", "success");
+                });
             });
         };
 
@@ -91,52 +106,78 @@ document.addEventListener("DOMContentLoaded", () => {
         apiKeysContainer.appendChild(div);
     };
 
-    // --- PROMPT MANAGEMENT ---
+    // --- PROMPT MANAGEMENT (MODIFIED) ---
     const createPromptInput = (promptText = "") => {
         const div = document.createElement("div");
         div.className = "prompt-item";
-
-        const radio = document.createElement("input");
-        radio.type = "radio";
-        radio.name = "prompt-selection";
-        // Ta sẽ kiểm tra và set `checked` khi tải danh sách
 
         const textarea = document.createElement("textarea");
         textarea.rows = 3;
         textarea.value = promptText;
         textarea.placeholder = "Nhập nội dung prompt ở đây...";
 
+        const actionsDiv = document.createElement("div");
+        actionsDiv.className = "prompt-item-actions";
+
+        const applyBtn = document.createElement("button");
+        applyBtn.className = "prompt-action-btn apply-prompt-btn";
+        applyBtn.textContent = "Dùng";
+        applyBtn.title = "Áp dụng prompt này";
+        applyBtn.onclick = () => {
+            const promptToApply = textarea.value.trim();
+            systemPromptInput.value = promptToApply;
+            chrome.storage.sync.set({ geminiSystemPrompt: promptToApply }, () => {
+                showNotification("✓ Đã áp dụng prompt!", "success");
+                promptModal.style.display = "none";
+            });
+        };
+
         const removeBtn = document.createElement("button");
-        removeBtn.className = "remove-key-btn";
+        removeBtn.className = "prompt-action-btn remove-prompt-btn";
         removeBtn.textContent = "Xóa";
         removeBtn.title = "Xóa prompt này";
-        removeBtn.onclick = () => div.remove();
 
-        div.appendChild(radio);
+        // THAY ĐỔI TẠI ĐÂY
+        removeBtn.onclick = () => {
+            showConfirmation("Bạn có chắc chắn muốn xóa prompt này?", () => {
+                // Xóa phần tử khỏi giao diện
+                div.remove();
+
+                // Lấy tất cả các textarea còn lại trong container
+                const remainingPromptTextareas = promptsContainer.querySelectorAll("textarea");
+
+                // Tạo một mảng mới từ nội dung của các textarea còn lại
+                const updatedPrompts = Array.from(remainingPromptTextareas)
+                    .map(textarea => textarea.value.trim())
+                    .filter(text => text !== "");
+
+                // Lưu mảng mới vào storage, ghi đè lên danh sách cũ
+                chrome.storage.sync.set({ savedPrompts: updatedPrompts }, () => {
+                    showNotification("Đã xóa prompt thành công!", "success");
+                });
+            });
+        };
+
+        actionsDiv.appendChild(applyBtn);
+        actionsDiv.appendChild(removeBtn);
+
         div.appendChild(textarea);
-        div.appendChild(removeBtn);
+        div.appendChild(actionsDiv);
         promptsContainer.appendChild(div);
     };
-    
+
+    // (MODIFIED)
     const loadPrompts = async () => {
         promptsContainer.innerHTML = "";
-        const { savedPrompts, geminiSystemPrompt } = await chrome.storage.sync.get(["savedPrompts", "geminiSystemPrompt"]);
+        const { savedPrompts } = await chrome.storage.sync.get(["savedPrompts"]);
         const prompts = savedPrompts || [];
-        
+
         if (prompts.length > 0) {
             prompts.forEach(promptText => createPromptInput(promptText));
         } else {
             createPromptInput("Chọn đáp án đúng, không giải thích gì thêm");
-             createPromptInput("Dịch sang tiếng Việt, không giải thích gì thêm");
+            createPromptInput("Dịch sang tiếng Việt, không giải thích gì thêm");
         }
-
-        // Đánh dấu radio button cho prompt đang được sử dụng
-        const textareas = promptsContainer.querySelectorAll("textarea");
-        textareas.forEach(textarea => {
-            if (textarea.value === geminiSystemPrompt) {
-                textarea.previousElementSibling.checked = true;
-            }
-        });
     };
 
 
@@ -173,6 +214,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     // --- EVENT LISTENERS ---
+    confirmButton.addEventListener("click", () => {
+        if (typeof confirmCallback === "function") {
+            confirmCallback();
+        }
+        confirmationModal.style.display = "none";
+    });
+
+    cancelButton.addEventListener("click", () => {
+        confirmationModal.style.display = "none";
+    });
 
     // API Key Modal Listeners
     manageApiButton.addEventListener("click", () => apiKeyModal.style.display = "block");
@@ -184,12 +235,13 @@ document.addEventListener("DOMContentLoaded", () => {
         promptModal.style.display = "block";
     });
     closePromptModalButton.addEventListener("click", () => promptModal.style.display = "none");
-    
+
 
     // General Modal close listener
     window.addEventListener("click", (event) => {
         if (event.target == apiKeyModal) apiKeyModal.style.display = "none";
         if (event.target == promptModal) promptModal.style.display = "none";
+        if (event.target == confirmationModal) confirmationModal.style.display = "none";
     });
 
     // API Key Actions
@@ -214,29 +266,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Prompt Actions
     addPromptButton.addEventListener("click", () => createPromptInput());
-    
+
     savePromptsButton.addEventListener("click", () => {
         const promptTextareas = promptsContainer.querySelectorAll("textarea");
         const prompts = Array.from(promptTextareas).map(textarea => textarea.value.trim()).filter(text => text !== "");
-        
+
         chrome.storage.sync.set({ savedPrompts: prompts }, () => {
             showNotification("✓ Đã lưu danh sách prompts!", "success");
-        });
-    });
-
-    applyPromptButton.addEventListener("click", () => {
-        const selectedRadio = promptsContainer.querySelector('input[name="prompt-selection"]:checked');
-        if (!selectedRadio) {
-            showNotification("⚠️ Vui lòng chọn một prompt để áp dụng!", "error");
-            return;
-        }
-        const promptText = selectedRadio.nextElementSibling.value.trim();
-        systemPromptInput.value = promptText;
-        
-        // Cũng lưu prompt này làm prompt hệ thống hiện tại
-        chrome.storage.sync.set({ geminiSystemPrompt: promptText }, () => {
-            showNotification("✓ Đã áp dụng prompt!", "success");
-            promptModal.style.display = "none";
         });
     });
 
