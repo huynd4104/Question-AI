@@ -5,17 +5,28 @@ document.addEventListener("DOMContentLoaded", () => {
     const manageApiButton = document.getElementById("manageApiButton");
     const extensionToggle = document.getElementById("extensionToggle");
     const themeToggle = document.getElementById("miniCircleToggle");
+    const managePromptsButton = document.getElementById("managePromptsButton");
 
-    // Modal elements
+    // API Key Modal elements
     const apiKeyModal = document.getElementById("apiKeyModal");
-    const closeModalButton = document.querySelector(".close-button");
+    const closeApiKeyModalButton = apiKeyModal.querySelector(".close-button");
     const apiKeysContainer = document.getElementById("apiKeysContainer");
     const addApiKeyButton = document.getElementById("addApiKeyButton");
     const saveKeysButton = document.getElementById("saveKeysButton");
 
+    // Prompt Modal elements
+    const promptModal = document.getElementById("promptModal");
+    const closePromptModalButton = promptModal.querySelector(".close-button");
+    const promptsContainer = document.getElementById("promptsContainer");
+    const addPromptButton = document.getElementById("addPromptButton");
+    const savePromptsButton = document.getElementById("savePromptsButton");
+    const applyPromptButton = document.getElementById("applyPromptButton");
+
+
     const globalNotification = document.getElementById("globalNotification");
     let notificationTimeout;
 
+    // --- UTILITY FUNCTIONS ---
     const showNotification = (message, type, duration = 3000) => {
         if (notificationTimeout) clearTimeout(notificationTimeout);
         globalNotification.textContent = message;
@@ -31,6 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return key;
     };
 
+    // --- API KEY MANAGEMENT ---
     const createApiKeyInput = (keyObject = { key: '', status: 'active' }) => {
         const div = document.createElement("div");
         div.className = "api-key-item";
@@ -45,7 +57,6 @@ document.addEventListener("DOMContentLoaded", () => {
         input.dataset.fullKey = keyObject.key;
         input.value = maskApiKey(keyObject.key);
 
-        // Xử lý cho key đã lưu và key mới
         if (keyObject.key) {
             input.readOnly = true;
         } else {
@@ -62,12 +73,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         removeBtn.onclick = () => {
             div.remove();
-            // Lưu lại danh sách các key còn lại ngay lập tức
             const apiKeyInputs = document.querySelectorAll(".apiKeyInput");
             const apiKeyObjects = Array.from(apiKeyInputs)
                 .map(input => ({
                     key: input.dataset.fullKey.trim(),
-                    // Giữ lại status cũ nếu có, nếu không thì mặc định là active
                     status: apiKeysContainer.querySelector(`[data-full-key="${input.dataset.fullKey}"]`)?.parentElement.classList.contains('locked') ? 'locked' : 'active'
                 }))
                 .filter(obj => obj.key !== "");
@@ -82,25 +91,73 @@ document.addEventListener("DOMContentLoaded", () => {
         apiKeysContainer.appendChild(div);
     };
 
+    // --- PROMPT MANAGEMENT ---
+    const createPromptInput = (promptText = "") => {
+        const div = document.createElement("div");
+        div.className = "prompt-item";
+
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "prompt-selection";
+        // Ta sẽ kiểm tra và set `checked` khi tải danh sách
+
+        const textarea = document.createElement("textarea");
+        textarea.rows = 3;
+        textarea.value = promptText;
+        textarea.placeholder = "Nhập nội dung prompt ở đây...";
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "remove-key-btn";
+        removeBtn.textContent = "Xóa";
+        removeBtn.title = "Xóa prompt này";
+        removeBtn.onclick = () => div.remove();
+
+        div.appendChild(radio);
+        div.appendChild(textarea);
+        div.appendChild(removeBtn);
+        promptsContainer.appendChild(div);
+    };
+    
+    const loadPrompts = async () => {
+        promptsContainer.innerHTML = "";
+        const { savedPrompts, geminiSystemPrompt } = await chrome.storage.sync.get(["savedPrompts", "geminiSystemPrompt"]);
+        const prompts = savedPrompts || [];
+        
+        if (prompts.length > 0) {
+            prompts.forEach(promptText => createPromptInput(promptText));
+        } else {
+            createPromptInput("Chọn đáp án đúng, không giải thích gì thêm");
+             createPromptInput("Dịch sang tiếng Việt, không giải thích gì thêm");
+        }
+
+        // Đánh dấu radio button cho prompt đang được sử dụng
+        const textareas = promptsContainer.querySelectorAll("textarea");
+        textareas.forEach(textarea => {
+            if (textarea.value === geminiSystemPrompt) {
+                textarea.previousElementSibling.checked = true;
+            }
+        });
+    };
+
+
+    // --- LOAD ALL SETTINGS ON STARTUP ---
     const loadSettings = async () => {
         // Lấy cài đặt từ sync storage
-        const syncResult = await chrome.storage.sync.get(["geminiApiKeys", "geminiSystemPrompt", "isExtensionEnabled", "isDarkMode"]);
+        const syncResult = await chrome.storage.sync.get(["geminiApiKeys", "geminiSystemPrompt", "isExtensionEnabled", "isDarkMode", "savedPrompts"]);
 
         // Xử lý API keys
         apiKeysContainer.innerHTML = "";
         let keys = syncResult.geminiApiKeys || [];
 
-        // Tự động chuyển đổi định dạng dữ liệu cũ
         if (keys.length > 0 && typeof keys[0] === 'string') {
             keys = keys.map(key => ({ key: key, status: 'active' }));
-            // Lưu lại định dạng mới
             await chrome.storage.sync.set({ geminiApiKeys: keys });
         }
 
         if (keys.length > 0) {
             keys.forEach(keyObj => createApiKeyInput(keyObj));
         } else {
-            createApiKeyInput(); // Hiển thị ô trống nếu không có key nào
+            createApiKeyInput();
         }
 
         // Tải các cài đặt khác
@@ -108,37 +165,39 @@ document.addEventListener("DOMContentLoaded", () => {
         extensionToggle.checked = syncResult.isExtensionEnabled !== false;
         themeToggle.checked = syncResult.isDarkMode !== false;
 
-        // Tải dữ liệu từ local storage (câu hỏi/trả lời cuối)
+        // Tải dữ liệu từ local storage
         const localResult = await chrome.storage.local.get(["lastQuestion", "lastAnswer"]);
         document.getElementById("lastQuestion").textContent = localResult.lastQuestion || "Chưa có câu hỏi nào.";
         document.getElementById("lastAnswer").textContent = localResult.lastAnswer || "Chưa có câu trả lời nào.";
     };
 
 
-    // --- Event Listeners ---
+    // --- EVENT LISTENERS ---
+
+    // API Key Modal Listeners
     manageApiButton.addEventListener("click", () => apiKeyModal.style.display = "block");
+    closeApiKeyModalButton.addEventListener("click", () => apiKeyModal.style.display = "none");
 
-    closeModalButton.addEventListener("click", () => {
-        apiKeyModal.style.display = "none";
-        loadSettings(); // Tải lại setting để hủy các thay đổi chưa lưu
+    // Prompt Modal Listeners
+    managePromptsButton.addEventListener("click", () => {
+        loadPrompts(); // Tải danh sách prompts mỗi khi mở modal
+        promptModal.style.display = "block";
     });
+    closePromptModalButton.addEventListener("click", () => promptModal.style.display = "none");
+    
 
+    // General Modal close listener
     window.addEventListener("click", (event) => {
-        if (event.target == apiKeyModal) {
-            apiKeyModal.style.display = "none";
-            loadSettings();
-        }
+        if (event.target == apiKeyModal) apiKeyModal.style.display = "none";
+        if (event.target == promptModal) promptModal.style.display = "none";
     });
 
+    // API Key Actions
     addApiKeyButton.addEventListener("click", () => createApiKeyInput());
-
     saveKeysButton.addEventListener("click", () => {
         const apiKeyInputs = document.querySelectorAll(".apiKeyInput");
         const apiKeyObjects = Array.from(apiKeyInputs)
-            .map((input) => ({
-                key: input.dataset.fullKey.trim(),
-                status: 'active' // Khi lưu, tất cả các key đều được reset về 'active'
-            }))
+            .map((input) => ({ key: input.dataset.fullKey.trim(), status: 'active' }))
             .filter((obj) => obj.key !== "");
 
         if (apiKeyObjects.length === 0) {
@@ -148,10 +207,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
         chrome.storage.sync.set({ geminiApiKeys: apiKeyObjects }, () => {
             showNotification("✓ Đã lưu và kích hoạt lại tất cả API Keys!", "success");
+            apiKeyModal.style.display = "none";
             loadSettings();
         });
     });
 
+    // Prompt Actions
+    addPromptButton.addEventListener("click", () => createPromptInput());
+    
+    savePromptsButton.addEventListener("click", () => {
+        const promptTextareas = promptsContainer.querySelectorAll("textarea");
+        const prompts = Array.from(promptTextareas).map(textarea => textarea.value.trim()).filter(text => text !== "");
+        
+        chrome.storage.sync.set({ savedPrompts: prompts }, () => {
+            showNotification("✓ Đã lưu danh sách prompts!", "success");
+        });
+    });
+
+    applyPromptButton.addEventListener("click", () => {
+        const selectedRadio = promptsContainer.querySelector('input[name="prompt-selection"]:checked');
+        if (!selectedRadio) {
+            showNotification("⚠️ Vui lòng chọn một prompt để áp dụng!", "error");
+            return;
+        }
+        const promptText = selectedRadio.nextElementSibling.value.trim();
+        systemPromptInput.value = promptText;
+        
+        // Cũng lưu prompt này làm prompt hệ thống hiện tại
+        chrome.storage.sync.set({ geminiSystemPrompt: promptText }, () => {
+            showNotification("✓ Đã áp dụng prompt!", "success");
+            promptModal.style.display = "none";
+        });
+    });
+
+    // Main Page Actions
     savePromptButton.addEventListener("click", () => {
         chrome.storage.sync.set({ geminiSystemPrompt: systemPromptInput.value.trim() }, () => {
             showNotification("✓ Đã lưu Prompt thành công !", "success");

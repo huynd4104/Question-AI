@@ -98,7 +98,6 @@
         }
 
         button {
-            width: 100%;
             padding: 11px 16px;
             background: #2a3649;
             color: white;
@@ -113,6 +112,39 @@
         button:hover {
             background: #3b4a63;
         }
+        
+        .button-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        #savePromptButton {
+            flex-grow: 1; /* Nút Lưu sẽ chiếm phần lớn không gian */
+        }
+        
+        #managePromptsButton {
+            flex-shrink: 0; /* Nút bánh răng không bị co lại */
+            width: 42px;
+            height: 42px;
+            padding: 8px;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+        }
+
+        #managePromptsButton svg {
+            width: 100%;
+            height: 100%;
+            fill: var(--text-secondary);
+            transition: fill 0.2s ease;
+        }
+        #managePromptsButton:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        #managePromptsButton:hover svg {
+            fill: var(--text-primary);
+        }
+
 
         .divider {
             height: 1px;
@@ -167,14 +199,12 @@
             width: 100%;
             height: 100%;
             border: 3px solid var(--accent-red);
-            /* viền mặc định đỏ */
             border-radius: 50%;
             box-sizing: border-box;
             cursor: pointer;
             transition: border-color 0.3s ease;
         }
 
-        /* vòng tròn trắng bên trong */
         .circle::after {
             content: "";
             position: absolute;
@@ -186,7 +216,6 @@
             border-radius: 50%;
         }
 
-        /* đổi màu khi checked */
         .circle-toggle input:checked+.circle {
             border-color: var(--accent-green);
         }
@@ -222,19 +251,17 @@
             box-sizing: border-box;
             cursor: pointer;
             transition: border-color 0.2s;
-            background: transparent;
         }
 
         .mini-circle::after {
             content: "";
             position: absolute;
-            top: 3.5px;
-            left: 3.5px;
-            width: 10px;
-            height: 10px;
+            top: 2.2px;
+            left: 2px;
+            right: 2.1px;
+            bottom: 2px;
             background: var(--accent-green);
             border-radius: 50%;
-            transition: 0.2s;
         }
 
         .mini-circle-toggle input:checked+.mini-circle {
@@ -261,7 +288,7 @@
 
         .modal-content {
             background: #1c1c1c;
-            margin: 15% auto;
+            margin: 10% auto; /* Giảm margin top để modal hiển thị cao hơn */
             padding: 24px;
             border: 1px solid var(--input-border);
             border-radius: 12px;
@@ -283,12 +310,25 @@
         .close-button:hover {
             color: var(--text-primary);
         }
+        
+        .modal-body-scrollable {
+            max-height: 300px; /* Giới hạn chiều cao và cho phép cuộn */
+            overflow-y: auto;
+            margin-bottom: 16px;
+            padding-right: 5px; /* Thêm khoảng đệm cho thanh cuộn */
+        }
 
-        .api-key-item {
+        .api-key-item, .prompt-item {
             display: flex;
             align-items: center;
             gap: 8px;
             margin-bottom: 10px;
+        }
+        .prompt-item {
+            align-items: flex-start; /* Căn radio button với dòng đầu của textarea */
+        }
+        .prompt-item input[type="radio"] {
+            margin-top: 10px; /* Căn chỉnh radio button */
         }
         
         /* STYLE CHO KEY BỊ KHÓA */
@@ -299,14 +339,14 @@
             cursor: not-allowed;
         }
 
-
-        .api-key-item input {
+        .api-key-item input, .prompt-item textarea {
             flex-grow: 1;
         }
 
         .remove-key-btn,
         #addApiKeyButton,
-        #manageApiButton {
+        #manageApiButton,
+        #addPromptButton {
             padding: 10px 14px;
             border: 1px solid var(--input-border);
             background: var(--input-bg);
@@ -327,12 +367,11 @@
             color: var(--accent-red);
             width: auto;
         }
-
         .remove-key-btn:hover {
             background: rgba(239, 68, 68, 0.15);
         }
 
-        #addApiKeyButton {
+        #addApiKeyButton, #addPromptButton {
             color: var(--accent-green);
             width: 100%;
             margin-top: 8px;
@@ -341,9 +380,19 @@
         }
 
         #addApiKeyButton:hover,
-        #manageApiButton:hover {
+        #manageApiButton:hover,
+        #addPromptButton:hover {
             background: rgba(34, 197, 94, 0.15);
         }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .modal-actions button {
+            flex: 1; /* Hai nút chia đều không gian */
+        }
+        
 
         .global-notification {
             position: fixed;
@@ -366,19 +415,16 @@
 
         .global-notification.show {
             transform: translate(-50%, 0);
-            /* Di chuyển vào trong màn hình */
             opacity: 1;
         }
 
         .global-notification.success {
-            /* background: rgba(34, 197, 94, 0.1); */
             background: #1c1c1c;
             color: var(--accent-green);
             border: 1px solid rgba(34, 197, 94, 0.2);
         }
 
         .global-notification.error {
-            /* background: rgba(239, 68, 68, 0.1); */
             background: #1c1c1c;
             color: var(--accent-red);
             border: 1px solid rgba(239, 68, 68, 0.2);
@@ -394,7 +440,14 @@
             <label for="systemPrompt">Prompt cố định</label>
             <textarea id="systemPrompt" placeholder="Ví dụ: Dịch đoạn văn bản sau sang tiếng Việt."></textarea>
         </div>
-        <button id="savePromptButton">Lưu Prompt</button>
+        <div class="button-group">
+            <button id="savePromptButton">Lưu Prompt</button>
+            <button id="managePromptsButton" title="Quản lý danh sách prompts">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.44,0.17-0.48,0.41L9.22,5.73C8.63,5.96,8.1,6.29,7.6,6.67L5.21,5.71C4.99,5.62,4.74,5.69,4.62,5.92L2.7,9.24 c-0.11,0.2-0.06,0.47,0.12,0.61L4.85,11c-0.04,0.3-0.06,0.61-0.06,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.38,2.92 c0.04,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.48-0.41l0.38-2.92c0.59-0.24,1.12-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.11-0.2,0.06-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"></path>
+                </svg>
+            </button>
+        </div>
         <div class="divider"></div>
 
         <div class="settings-actions">
@@ -434,6 +487,21 @@
             <button id="addApiKeyButton">+</button>
             <div class="divider" style="margin: 16px 0;"></div>
             <button id="saveKeysButton">Lưu và Kích hoạt tất cả API Keys</button>
+        </div>
+    </div>
+    
+    <div id="promptModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <label style="font-size: 16px; margin-bottom: 16px;">Quản lý Prompt</label>
+            <div id="promptsContainer" class="modal-body-scrollable">
+                </div>
+            <button id="addPromptButton">+</button>
+            <div class="divider" style="margin: 16px 0;"></div>
+            <div class="modal-actions">
+                 <button id="savePromptsButton">Lưu</button>
+                 <button id="applyPromptButton">Áp dụng</button>
+            </div>
         </div>
     </div>
 

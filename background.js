@@ -1,8 +1,8 @@
-//chuyển đổi định dạng API keys từ mảng string sang mảng object
 async function getNormalizedApiKeys() {
     const settings = await chrome.storage.sync.get('geminiApiKeys');
     let apiKeys = settings.geminiApiKeys || [];
 
+    //chuyển đổi định dạng API keys từ mảng string sang mảng object (có thể xóa nếu ko update)
     if (apiKeys.length > 0 && typeof apiKeys[0] === 'string') {
         const newApiKeys = apiKeys.map(key => ({ key: key, status: 'active' }));
         await chrome.storage.sync.set({ geminiApiKeys: newApiKeys });
