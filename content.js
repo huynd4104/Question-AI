@@ -24,7 +24,7 @@ async function showResult(text, isLoading = false) {
     const theme = {
         backgroundColor: isDarkMode ? '#2d2d2d' : '#f0f0f0',
         color: isDarkMode ? '#f0f0f0' : '#2d2d2d',
-        borderColor: isDarkMode ? '#444' : '#ccc'  
+        borderColor: isDarkMode ? '#444' : '#ccc'
     };
 
     resultDiv = document.createElement('div');
@@ -37,15 +37,22 @@ async function showResult(text, isLoading = false) {
         color: theme.color,
         border: `1px solid ${theme.borderColor}`,
         borderRadius: '8px',
-        padding: '5px 10px',
+        padding: '5px 8px',
         zIndex: '99999',
-        maxWidth: '450px',
+        maxWidth: '350px',
+        maxHeight: '100px',
+        overflowY: 'auto',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
         boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
-        fontSize: '12px',
+        fontSize: '13px',
         lineHeight: '1.6',
-        fontFamily: 'Arial, sans-serif'
+        fontFamily: 'Arial, sans-serif',
+        '&::-webkit-scrollbar': {
+            display: 'none',
+        }
     });
-    
+
     const content = isLoading ? 'Đang xử lý...' : text.replace(/\n/g, '<br>');
     resultDiv.innerHTML = `<div id="gemini-content">${content}</div>`;
     document.body.appendChild(resultDiv);
@@ -57,12 +64,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         showResult("", true);
     } else if (request.type === 'show_result') {
         if (resultDiv) {
-             const contentDiv = document.getElementById('gemini-content');
-             if(contentDiv){
+            const contentDiv = document.getElementById('gemini-content');
+            if (contentDiv) {
                 contentDiv.innerHTML = request.text.replace(/\n/g, '<br>');
-             }
+            }
         } else {
-             showResult(request.text, false);
+            showResult(request.text, false);
         }
     }
 });
@@ -81,7 +88,7 @@ document.addEventListener('click', (event) => {
 // Gửi tin nhắn khi bôi đen văn bản
 document.addEventListener("mouseup", async () => {
     const { isExtensionEnabled } = await chrome.storage.sync.get({ isExtensionEnabled: true });
-    
+
     // Nếu tiện ích bị tắt, dừng lại ngay lập tức
     if (!isExtensionEnabled) {
         return;
