@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const systemPromptInput = document.getElementById("systemPrompt");
     const savePromptButton = document.getElementById("savePromptButton");
     const manageApiButton = document.getElementById("manageApiButton");
-    const extensionToggle = document.getElementById("extensionToggle");
+    const highlightSearchToggle = document.getElementById("highlightSearchToggle");
     const themeToggle = document.getElementById("miniCircleToggle");
     const managePromptsButton = document.getElementById("managePromptsButton");
 
@@ -184,7 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- LOAD ALL SETTINGS ON STARTUP ---
     const loadSettings = async () => {
         // Lấy cài đặt từ sync storage
-        const syncResult = await chrome.storage.sync.get(["geminiApiKeys", "geminiSystemPrompt", "isExtensionEnabled", "isDarkMode", "savedPrompts"]);
+        const syncResult = await chrome.storage.sync.get(["geminiApiKeys", "geminiSystemPrompt", "isHighlightSearchEnabled", "isDarkMode", "savedPrompts"]);
 
         // Xử lý API keys
         apiKeysContainer.innerHTML = "";
@@ -203,7 +203,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Tải các cài đặt khác
         systemPromptInput.value = syncResult.geminiSystemPrompt || "";
-        extensionToggle.checked = syncResult.isExtensionEnabled !== false;
+        highlightSearchToggle.checked = syncResult.isHighlightSearchEnabled !== false;
         themeToggle.checked = syncResult.isDarkMode !== false;
 
         // Tải dữ liệu từ local storage
@@ -283,8 +283,8 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    extensionToggle.addEventListener("change", () => {
-        chrome.storage.sync.set({ isExtensionEnabled: extensionToggle.checked });
+    highlightSearchToggle.addEventListener("change", () => {
+        chrome.storage.sync.set({ isHighlightSearchEnabled: highlightSearchToggle.checked });
     });
 
     themeToggle.addEventListener("change", () => {

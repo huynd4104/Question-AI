@@ -84,10 +84,18 @@ async function callGeminiWithKeyManagement(fullPrompt) {
 // --- LISTENER ---
 
 chrome.runtime.onInstalled.addListener(() => {
+    // Menu để hỏi Gemini khi bôi đen văn bản
     chrome.contextMenus.create({
         id: "askGemini",
         title: "Hỏi Gemini",
         contexts: ["selection"]
+    });
+
+    // Menu MỚI: để hiện lại kết quả cuối cùng
+    chrome.contextMenus.create({
+        id: "showLastAnswer",
+        title: "Hiện lại câu trả lời cuối",
+        contexts: ["page"] // Hiển thị khi chuột phải bất cứ đâu trên trang
     });
 });
 
@@ -109,16 +117,23 @@ async function handleRequest(text, tabId) {
     });
 }
 
+//menu chuột phải
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-    const { isExtensionEnabled } = await chrome.storage.sync.get({ isExtensionEnabled: true });
-    if (!isExtensionEnabled || info.menuItemId !== "askGemini" || !info.selectionText) return;
+    // Xử lý cho menu "Hỏi Gemini"
+    if (info.menuItemId === "askGemini" && info.selectionText) {
+        handleRequest(info.selectionText, tab.id);
+        return;  
+    }
 
-    handleRequest(info.selectionText, tab.id);
+    // Xử lý cho menu "Hiện lại câu trả lời cuối"
+    if (info.menuItemId === "showLastAnswer") {
+        // Gửi yêu cầu đến content script của tab hiện tại để hiển thị lại kết quả
+        chrome.tabs.sendMessage(tab.id, { type: 'reshow_result' });
+    }
 });
 
 chrome.runtime.onMessage.addListener(async (msg, sender) => {
-    const { isExtensionEnabled } = await chrome.storage.sync.get({ isExtensionEnabled: true });
-    if (!isExtensionEnabled || msg.type !== "search" || !msg.text) return;
+    if (msg.type !== "search" || !msg.text) return;
     
     // Đặt system prompt mặc định cho hành động bôi đen
     const settings = await chrome.storage.sync.get('geminiSystemPrompt');

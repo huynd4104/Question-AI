@@ -1,8 +1,15 @@
-// Biến để lưu trữ div hiển thị kết quả
 let resultDiv = null;
 let lastSelectionRange = null;
+let lastContextMenuCoords = { x: 0, y: 0 }; 
 
-// Hàm để hiển thị kết quả
+// Lắng nghe sự kiện chuột phải để lấy tọa độ con trỏ
+document.addEventListener('contextmenu', (event) => {
+    // event.pageX/pageY sẽ cho tọa độ chính xác trên trang, bao gồm cả phần đã cuộn
+    lastContextMenuCoords = { x: event.pageX, y: event.pageY };
+}, true);
+
+
+// Hàm để hiển thị kết quả (dựa trên vùng bôi đen)
 async function showResult(text, isLoading = false) {
     if (resultDiv) {
         resultDiv.remove();
@@ -58,8 +65,8 @@ async function showResult(text, isLoading = false) {
     document.body.appendChild(resultDiv);
 }
 
-// Lắng nghe tin nhắn từ background script
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+// Lắng nghe tin nhắn từ background script (Hiển thị lại kết quả)
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     if (request.type === 'show_loading') {
         showResult("", true);
     } else if (request.type === 'show_result') {
@@ -70,6 +77,46 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
         } else {
             showResult(request.text, false);
+        }
+    } else if (request.type === 'reshow_result') {
+        // Lấy câu trả lời cuối cùng đã được lưu
+        const { lastAnswer } = await chrome.storage.local.get('lastAnswer');
+
+        // Kiểm tra xem có câu trả lời không
+        if (lastAnswer) {
+             if (resultDiv) {
+                resultDiv.remove();
+            }
+            const { isDarkMode } = await chrome.storage.sync.get({ isDarkMode: true });
+            const theme = {
+                backgroundColor: isDarkMode ? '#2d2d2d' : '#f0f0f0',
+                color: isDarkMode ? '#f0f0f0' : '#2d2d2d',
+                borderColor: isDarkMode ? '#444' : '#ccc'
+            };
+            resultDiv = document.createElement('div');
+            Object.assign(resultDiv.style, {
+                position: 'absolute',
+                top: `${lastContextMenuCoords.y + 5}px`, // Sử dụng tọa độ chuột phải đã lưu
+                left: `${lastContextMenuCoords.x}px`,   // Sử dụng tọa độ chuột phải đã lưu
+                backgroundColor: theme.backgroundColor,
+                color: theme.color,
+                border: `1px solid ${theme.borderColor}`,
+                borderRadius: '8px',
+                padding: '5px 8px',
+                zIndex: '99999',
+                maxWidth: '350px',
+                maxHeight: '100px',
+                overflowY: 'auto',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
+                fontSize: '13px',
+                lineHeight: '1.6',
+                fontFamily: 'Arial, sans-serif'
+            });
+            const content = lastAnswer.replace(/\n/g, '<br>');
+            resultDiv.innerHTML = `<div id="gemini-content">${content}</div>`;
+            document.body.appendChild(resultDiv);
         }
     }
 });
@@ -86,11 +133,16 @@ document.addEventListener('click', (event) => {
 }, true);
 
 // Gửi tin nhắn khi bôi đen văn bản
-document.addEventListener("mouseup", async () => {
-    const { isExtensionEnabled } = await chrome.storage.sync.get({ isExtensionEnabled: true });
+document.addEventListener("mouseup", async (event) => {
+    // Nếu resultDiv tồn tại và nơi bạn click chuột nằm trong đó, thì không làm gì cả.
+    if (resultDiv && resultDiv.contains(event.target)) {
+        return;
+    }
 
-    // Nếu tiện ích bị tắt, dừng lại ngay lập tức
-    if (!isExtensionEnabled) {
+    const { isHighlightSearchEnabled } = await chrome.storage.sync.get({ isHighlightSearchEnabled: true });
+
+    // Nếu tính năng bôi đen để tìm kiếm bị tắt, dừng lại
+    if (!isHighlightSearchEnabled) {
         return;
     }
 
